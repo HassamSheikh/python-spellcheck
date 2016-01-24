@@ -1,54 +1,39 @@
-import re
 import operator
-import re, collections
-from jellyfish import jaro_distance
-from jellyfish import levenshtein_distance
 import jellyfish
-import numpy
 from metaphone import doublemetaphone
 
-def SimilarityRaw(AddressArray,Suggestion):
-  score_raw=[]
-  word_area=[]
-  score_meta=[]
-  if(len(AddressArray)>1):
-    answer = doublemetaphone(AddressArray)
-    if (len(answer[0])>1):
-      AddressMeta=answer[0]
-    else:
-      AddressMeta=answer[1]
-    for y in xrange(len(Suggestion)):
-      try:
-        answer = doublemetaphone(Suggestion[y])
-        if (len(answer[0])>1):
-          SuggestMeta=answer[0]
-        else:
-          SuggestMeta=answer[1]
-        score_meta.append(jellyfish.jaro_winkler(SuggestMeta,AddressMeta))
-        score_raw.append(jellyfish.jaro_winkler(Suggestion[y],AddressArray))
-        word_area.append(Suggestion[y])
-      except:
-        print "There was a problem matching"
-  zipped= zip (word_area,score_raw,score_meta)
-  finalAnswer =sorted(zipped, key=operator.itemgetter(0))
-  return finalAnswer
+class MatchingScore(object):
+  def __init__(self, raw_score, metaphone_score):
+    self.raw_score       = raw_score
+    self.metaphone_score = metaphone_score
 
-def RelevantWord(Query,limit):
-  score_final=[]
-  word_final=[]
-  for x in xrange(len(Query)):
-    if (Query[x][2]==1.0):
-      score_final.append(0.49*Query[x][1]+0.51*Query[x][2])
-    else:
-      score_final.append(0.68*Query[x][1]+0.32*Query[x][2])
-    word_final.append(str(Query[x][0]))
-  zipped= zip(word_final,score_final)
-  final_Answer =sorted(zipped, key=operator.itemgetter(1),reverse=True) 
-  final_Answer = numpy.array(final_Answer)
-  return (final_Answer[0:limit])
+def calculate_similarity_score(word, candidate):
+  return jellyfish.jaro_winkler(unicode(word), unicode(candidate))
+
+def calculate_matching_score(multiplier_raw, multiplier_meta, vocab_score):
+  return (multiplier_raw * vocab_score.raw_score + multiplier_meta * vocab_score.metaphone_score)
+
+def SimilarityRaw(AddressArray,Suggestion):
+  score_list = {}
+  AddressMeta = get_metaphone_from_word(AddressArray)
+  for y in xrange(len(Suggestion)):
+    SuggestMeta = get_metaphone_from_word(Suggestion[y])
+    score = MatchingScore(calculate_similarity_score(Suggestion[y], AddressArray), calculate_similarity_score(SuggestMeta, AddressMeta))
+    score_list[Suggestion[y]] = score 
+  return score_list
+
+def get_metaphone_from_word(word):
+  return doublemetaphone(word)[0] if len(doublemetaphone(word)[0]) > 1 else doublemetaphone(word)[1]
+
+def RelevantWord(query,limit):
+  final_score = {}
+  for key in query:
+    final_score[key] = calculate_matching_score(0.49, 0.51, query[key]) if query[key].metaphone_score == 1 else calculate_matching_score(0.68, 0.32, query[key])
+  final_score = sorted(final_score.items(), key=operator.itemgetter(1), reverse = True)
+  return final_score[0:limit]
   
 def SpellCheck(query,wordlist,limit):
   wordlist = map(lambda s: s.strip(), wordlist)
-  AllScore= SimilarityRaw(query.ToLower(),wordlist)
-  Answer = RelevantWord(AllScore,limit)
+  AllScore = SimilarityRaw(query.lower(),wordlist)
+  Answer   = RelevantWord(AllScore,limit)
   return Answer

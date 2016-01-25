@@ -21,7 +21,7 @@ def calculate_matching_score(multiplier_raw, multiplier_meta, vocab_score):
 def get_metaphone_from_word(word):
   return doublemetaphone(word)[0] if len(doublemetaphone(word)[0]) > 1 else doublemetaphone(word)[1]
   
-def SpellCheck(query, wordlist, limit):
+def spellcheck(query, wordlist, limit):
   scores     = map(lambda x: calculate_similarity_score(query.lower(), x), wordlist)
   score_list = sorted(dict(itertools.izip(wordlist, scores)).items(), key = operator.itemgetter(1), reverse = True)
   return score_list[0:limit]

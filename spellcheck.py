@@ -8,6 +8,8 @@ class MatchingScore(object):
     self.raw_score       = raw_score
     self.metaphone_score = metaphone_score
 
+wordlist =""
+
 def calculate_similarity_score(query, vocab_word):
   score = MatchingScore(calculate_jaro_winkler_score(vocab_word, query), calculate_jaro_winkler_score(get_metaphone_from_word(vocab_word), get_metaphone_from_word(query)))
   return calculate_matching_score(0.49, 0.51, score) if score.metaphone_score == 1 else calculate_matching_score(0.68, 0.32, score)
